@@ -11,7 +11,7 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
-groq_client = Groq(api_key=GROQ_API_KEY)
+client = Groq(api_key=GROQ_API_KEY)
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 SYSTEM_PROMPT = """Tumhara naam Jarvis hai. Tum User ke personal, highly intelligent, witty aur loyal AI assistant ho (jaise Iron Man ka JARVIS).
@@ -32,7 +32,7 @@ class ChatRequest(BaseModel):
 
 @app.get("/")
 def home():
-    return {"status": "Jarvis Online", "memory": "Supabase Connected"}
+    return {"status": "Jarvis Online", "message": "Welcome Daksh Boss!"}
 
 @app.post("/chat")
 def chat(request: ChatRequest):
@@ -41,7 +41,7 @@ def chat(request: ChatRequest):
         raise HTTPException(status_code=400, detail="Message empty nahi ho sakta.")
 
     try:
-        # Fetch last 10 messages from Supabase
+        # Fetch last 10 messages from Supabase memory
         history_res = supabase.table("chat_history").select("role, content").order("created_at", desc=False).limit(10).execute()
         db_history = history_res.data if history_res.data else []
 
@@ -51,16 +51,16 @@ def chat(request: ChatRequest):
         
         messages.append({"role": "user", "content": user_msg})
 
-        # Generate AI response
-        completion = groq_client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+        # Generate AI response using OpenAI OSS Model
+        completion = client.chat.completions.create(
+            model="openai/gpt-oss-120b",
             messages=messages,
             temperature=0.7,
             max_tokens=1024
         )
         reply = completion.choices[0].message.content
 
-        # Save to database
+        # Save conversation to Supabase
         supabase.table("chat_history").insert([
             {"role": "user", "content": user_msg},
             {"role": "assistant", "content": reply}
